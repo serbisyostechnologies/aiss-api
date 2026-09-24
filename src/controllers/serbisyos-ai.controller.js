@@ -3,6 +3,7 @@ import {
   generateAiImage,
   editAiImage,
   createAiImageCollage,
+  generateAiVideo,
 } from "../services/serbisyos-ai.service.js";
 import Generation from "../models/generation.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.util.js";
@@ -24,9 +25,7 @@ export const generatePrompt = async (req, res) => {
 export const generateImage = async (req, res) => {
   let gen;
   try {
-    const { base64Image, generation } = await generateAiImage(
-      req.body,
-    );
+    const { base64Image, generation } = await generateAiImage(req.body);
 
     gen = generation;
     const imageFile = `data:image/png;base64,${base64Image}`;
@@ -114,6 +113,34 @@ export const createImageCollage = async (req, res) => {
       success: true,
       message: "Image edited successfully",
       image_url,
+    });
+  } catch (err) {
+    console.log(err);
+    if (gen) {
+      await Generation.updateStatus(gen._id, "failed");
+    }
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+export const generateVideo = async (req, res) => {
+  let gen;
+  try {
+    const { videoFile, generation } = await generateAiVideo(req.body);
+    gen = generation;
+
+    const aiImage = await uploadOnCloudinary(videoFile, "VIDEOS");
+    const video_url = aiImage.url;
+
+    await Generation.updateGeneration(gen._id, {
+      result: video_url,
+      status: "completed",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Video created successfully",
+      video_url,
     });
   } catch (err) {
     console.log(err);

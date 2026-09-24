@@ -5,12 +5,13 @@ import {
   sendMobOtp,
   verifyMobOtp
 } from "../controllers/otp.controller.js";
+import authMiddleware from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/send-email-otp", sendOtp);
-router.post("/verify-email-otp", verifyOtp);
-router.post("/send-mobile-otp", sendMobOtp);
-router.post("/verify-mobile-otp", verifyMobOtp);
+router.post("/send-email-otp", authMiddleware, sendOtp);
+router.post("/verify-email-otp", authMiddleware, verifyOtp);
+router.post("/send-mobile-otp", authMiddleware, sendMobOtp);
+router.post("/verify-mobile-otp", authMiddleware, verifyMobOtp);
 
 export default router;

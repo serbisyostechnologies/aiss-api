@@ -10,6 +10,9 @@ import {
 import Generation from "../models/generation.model.js";
 import { Modality } from "@google/genai";
 import sharp from "sharp";
+import fs from "fs/promises";
+import path from "path";
+import { randomUUID } from "crypto";
 
 export const generateAiPrompt = async ({ prompt, userId }) => {
   let generation;
@@ -112,7 +115,7 @@ export const generateAiImage = async ({ prompt, userId }) => {
     const response = await openai.images.generate({
       model: process.env.IMAGE_MINI_MODEL,
       prompt: clearedPrompt.replace(/\n/g, " ").replace(/\s+/g, " ").trim(),
-      size: '1024x1024',
+      size: "1024x1024",
       quality: "medium",
     });
 
@@ -330,5 +333,247 @@ export const createAiImageCollage = async ({ files, prompt, userId }) => {
     console.error(error);
 
     throw new Error("Failed to create image collage");
+  }
+};
+
+const INITIAL_DURATION = 8;
+const EXTENSION_DURATION = 7;
+const MAX_EXTENSIONS = 20;
+const MAX_DURATION = 148;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const calculateExtensions = (duration) => {
+  if (duration <= INITIAL_DURATION) {
+    return 0;
+  }
+  return Math.ceil((duration - INITIAL_DURATION) / EXTENSION_DURATION);
+};
+
+const waitForOperation = async (operation) => {
+  let currentOperation = operation;
+
+  while (!currentOperation.done) {
+    console.log("Waiting for Veo...");
+
+    await sleep(10000);
+
+    currentOperation = await geminiAi.operations.getVideosOperation({
+      operation: currentOperation,
+    });
+  }
+
+  return currentOperation;
+};
+
+const getVideoFromOperation = (operation) => {
+  const generatedVideos = operation?.response?.generatedVideos;
+
+  if (!generatedVideos || generatedVideos.length === 0) {
+    throw new Error("Veo did not return a generated video");
+  }
+
+  return generatedVideos[0].video;
+};
+
+const createContinuationPrompt = ({
+  prompt,
+  extensionNumber,
+  currentDuration,
+  duration,
+}) => {
+  return `
+Continue the existing video seamlessly.
+
+Original prompt:
+${prompt}
+
+Current video duration:
+${currentDuration} seconds
+
+Target duration:
+${duration} seconds
+
+Continuation segment:
+${extensionNumber}
+
+Instructions:
+
+- Continue directly from the final moment of the existing video.
+- Do not restart the scene.
+- Preserve the same characters and their appearance.
+- Preserve clothing, environment and objects.
+- Preserve lighting and color palette.
+- Preserve camera style and cinematic look.
+- Preserve the same location unless the story naturally moves.
+- Continue the existing action naturally.
+- Maintain temporal and spatial continuity.
+- Do not introduce unrelated characters.
+- Do not suddenly change the visual style.
+- Make the transition seamless.
+- Continue the story from exactly where the previous segment ends.
+`;
+};
+
+export const generateAiVideo = async ({ userId, prompt, duration = 120 }) => {
+  let temporaryFile = null;
+  let generation;
+  const aspectRatio = "16:9";
+
+  try {
+    if (!prompt || !prompt.trim()) {
+      throw new Error("Video prompt is required");
+    }
+
+    if (duration < 4 || duration > MAX_DURATION) {
+      throw new Error(`duration must be between 4 and ${MAX_DURATION} seconds`);
+    }
+
+    if (!["16:9", "9:16"].includes(aspectRatio)) {
+      throw new Error("aspectRatio must be 16:9 or 9:16");
+    }
+
+    const totalExtensions = calculateExtensions(duration);
+
+    if (totalExtensions > MAX_EXTENSIONS) {
+      throw new Error(`Maximum extensions allowed: ${MAX_EXTENSIONS}`);
+    }
+
+    console.log("====================================");
+
+    console.log("Starting video generation");
+
+    console.log(`Target duration: ${duration}s`);
+
+    console.log(`Extensions: ${totalExtensions}`);
+
+    console.log("====================================");
+
+    /*
+     * =====================================
+     * INITIAL VIDEO
+     * =====================================
+     */
+
+    const clearedPrompt = cleanPrompt(prompt);
+    console.log("Generating initial 8 second video...");
+
+    const startTime = Date.now();
+    let operation = await geminiAi.models.generateVideos({
+      model: env.GOOGLE_VEO_VIDEO_MODEL,
+      prompt: clearedPrompt,
+      config: {
+        numberOfVideos: 1,
+        durationSeconds: 8,
+        resolution: "720p",
+        aspectRatio: aspectRatio,
+      },
+    });
+
+    operation = await waitForOperation(operation);
+
+    let video = getVideoFromOperation(operation);
+
+    let currentDuration = INITIAL_DURATION;
+
+    console.log(`Initial video generated: ${currentDuration}s`);
+
+    /*
+     * =====================================
+     * EXTENSIONS
+     * =====================================
+     */
+
+    for (let extension = 1; extension <= totalExtensions; extension++) {
+      console.log(`Extending video ${extension}/${totalExtensions}`);
+
+      const continuationPrompt = createContinuationPrompt({
+        prompt,
+        extensionNumber: extension,
+        currentDuration,
+        duration,
+      });
+
+      let extensionOperation = await geminiAi.models.generateVideos({
+        model: env.GOOGLE_VEO_VIDEO_MODEL,
+        video: video,
+        prompt: continuationPrompt,
+        config: {
+          numberOfVideos: 1,
+          durationSeconds: 8,
+          resolution: "720p",
+        },
+      });
+
+      extensionOperation = await waitForOperation(extensionOperation);
+      video = getVideoFromOperation(extensionOperation);
+      currentDuration += EXTENSION_DURATION;
+      console.log(`Current video duration: ${currentDuration}s`);
+      if (currentDuration >= duration) {
+        break;
+      }
+    }
+    const endTime = Date.now();
+
+    const generationTimeSeconds = Number(
+      ((endTime - startTime) / 1000).toFixed(2),
+    );
+
+    generation = await createGeneration({
+      userId,
+      type: "image",
+      operation: "create",
+      prompt: clearedPrompt,
+      creditsUsed: PROMPT_CREDIT_COST,
+      model: env.IMAGE_MINI_MODEL,
+      duration: generationTimeSeconds,
+      usageData: {
+        images: 1,
+      },
+    });
+
+    /*
+     * =====================================
+     * DOWNLOAD FINAL VIDEO
+     * =====================================
+     */
+
+    console.log("Downloading final Veo video...");
+
+    const uploadDirectory = path.resolve("public", "videos");
+
+    await fs.mkdir(uploadDirectory, {
+      recursive: true,
+    });
+
+    const filename = `${randomUUID()}.mp4`;
+
+    temporaryFile = path.join(uploadDirectory, filename);
+
+    await geminiAi.files.download({
+      file: video,
+      downloadPath: temporaryFile,
+    });
+
+    console.log(`Temporary video: ${temporaryFile}`);
+
+    return { videoFile: temporaryFile, generation };
+  } catch (error) {
+    /*
+     * Delete temporary file
+     * even when generation/upload fails
+     */
+
+    if (temporaryFile) {
+      try {
+        await fs.unlink(temporaryFile);
+      } catch (cleanupError) {
+        console.error("Failed to delete temporary file:", cleanupError);
+      }
+    }
+
+    console.error("Video generation failed:", error);
+
+    throw error;
   }
 };

@@ -37,6 +37,7 @@ export const login = async (req, res) => {
       user,
       plan,
       usage,
+      accessToken
     });
   } catch (err) {
     console.log(err);
