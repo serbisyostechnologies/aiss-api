@@ -1,4 +1,4 @@
-import { loginUser, updateUserPassword } from "../services/auth.service.js";
+import { loginUser, updateUserPassword, validateUserEmailMobile } from "../services/auth.service.js";
 import User from "../models/user.model.js";
 
 export const login = async (req, res) => {
@@ -81,3 +81,13 @@ export const updatePassword = async (req, res) => {
     res.status(400).json({ success: false, message: err.message });
   }
 };
+
+export const validateEmailMobile = async (req, res) => {
+  try {
+    const response = await validateUserEmailMobile(req.body);
+
+    res.status(201).json(response);
+  } catch(error) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+}

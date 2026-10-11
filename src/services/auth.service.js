@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import User from "../models/user.model.js";
 import UserPlan from "../models/user.plan.model.js";
 import UserUsage from "../models/user.usage.model.js";
@@ -113,4 +112,30 @@ export const updateUserPassword = async (req) => {
     userAgent: req.get("User-Agent"),
     performedBy: userId,
   });
+};
+
+export const validateUserEmailMobile = async ({ email, mobile }) => {
+  if ([email, mobile].some((field) => field?.trim() === "")) {
+    throw new Error("All fields are required");
+  }
+
+  try {
+    const user = await User.findOne({
+      $or: [{ email: email }, { mobile: mobile }],
+    });
+
+    if (!user) {
+      return {
+        success: false,
+        message: "No account found with the provided email or mobile number.",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Account found. You can proceed with password reset.",
+    };
+  } catch (error) {
+    throw new Error("Something went wrong. Please try again later.");
+  }
 };
