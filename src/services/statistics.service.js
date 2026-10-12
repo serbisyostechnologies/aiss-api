@@ -1,15 +1,14 @@
 import Generation from "../models/generation.model.js";
+import User from "../models/user.model.js";
 import mongoose from "mongoose";
 
 export const getUserProfileStats = async ({ userId }) => {
-  if (!userId?.trim()) {
-    return "Unauthorized access.";
-  }
-
   const stats = await Generation.aggregate([
     {
       $match: {
-        userId: new mongoose.Types.ObjectId(userId),
+        ...(userId !== 0 && {
+          userId: new mongoose.Types.ObjectId(userId),
+        }),
         status: "completed",
       },
     },
@@ -25,7 +24,12 @@ export const getUserProfileStats = async ({ userId }) => {
       },
     },
   ]);
-  return stats;
+
+  const users = await User.countDocuments({
+    isActive: true,
+  });
+
+  return { stats, users };
 };
 
 export const getUserTransactionHisotry = async ({ userId, days }) => {
@@ -84,7 +88,7 @@ export const getUserTransactionHisotry = async ({ userId, days }) => {
     credits: `-${item.creditsUsed} Credits`,
     status: item.status.charAt(0).toUpperCase() + item.status.slice(1),
     date: formatDateTime(item.createdAt),
-    result: item.result
+    result: item.result,
   }));
 
   return history;
