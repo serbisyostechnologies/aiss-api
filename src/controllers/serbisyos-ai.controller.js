@@ -7,7 +7,9 @@ import {
 } from "../services/serbisyos-ai.service.js";
 import Generation from "../models/generation.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.util.js";
-import fs from "fs/promises";
+import fs from "fs";
+import { toFile } from "openai";
+import path from "path";
 
 export const generatePrompt = async (req, res) => {
   try {
@@ -54,21 +56,53 @@ export const generateImage = async (req, res) => {
 export const editImage = async (req, res) => {
   let gen;
   try {
-    const { prompt, userId } = req.body;
-    const image = req.files?.image?.[0];
-    console.log("File path: ", image.path);
-    const imageBuffer = await fs.readFile(image.path);
-    const { base64Image, mimeType, generation } = await editAiImage({
-      imageBuffer: imageBuffer.toString("base64"),
-      mime: image.mimetype,
-      prompt,
-      userId,
-    });
+    console.log(req.files.image);
+    console.log(req.body);
 
+    if (req.files.image.length == 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Please upload an image.",
+      });
+    }
+    const original = req.files.image[0];
+    const extension = path.extname(original.originalname).toLowerCase();
+
+    const mimeTypes = {
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".webp": "image/webp",
+    };
+
+    const mimeType = mimeTypes[extension];
+    if (!mimeType) {
+      throw new Error("Only JPG, PNG, and WebP images are supported.");
+    }
+
+    if (!fs.existsSync(original.path)) {
+      throw new Error("Uploaded image file was not found.");
+    }
+
+    const imageFile = await toFile(
+      fs.createReadStream(original.path),
+      original.originalname,
+      {
+        type: mimeType,
+      },
+    );
+    const { prompt, userId } = req.body;
+
+    const { b64_json, generation } = await editAiImage({
+      imageFile,
+      userId,
+      prompt,
+    });
     gen = generation;
-    const imageFile = `data:${mimeType};base64,${base64Image}`;
-    const aiImage = await uploadOnCloudinary(imageFile, "IMAGES");
-    const image_url = aiImage.url;
+
+    const image = `data:image/png;base64,${b64_json}`;
+    const aiImage = await uploadOnCloudinary(image, "IMAGES");
+    const image_url = aiImage.secure_url;
 
     await Generation.updateGeneration(gen._id, {
       result: image_url,

@@ -8,8 +8,6 @@ import {
   validateUserInput,
 } from "../utils/utilities.util.js";
 import Generation from "../models/generation.model.js";
-import { Modality } from "@google/genai";
-import sharp from "sharp";
 import fs from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
@@ -113,7 +111,7 @@ export const generateAiImage = async ({ prompt, userId }) => {
 
     const startTime = Date.now();
     const response = await openai.images.generate({
-      model: process.env.IMAGE_MINI_MODEL,
+      model: env.IMAGE_MINI_MODEL,
       prompt: clearedPrompt.replace(/\n/g, " ").replace(/\s+/g, " ").trim(),
       size: "1024x1024",
       quality: "medium",
@@ -158,7 +156,7 @@ export const generateAiImage = async ({ prompt, userId }) => {
   }
 };
 
-export const editAiImage = async ({ imageBuffer, mime, prompt, userId }) => {
+export const editAiImage = async ({ imageFile, userId, prompt }) => {
   let generation;
   try {
     const result = await validateUserInput(userId, prompt);
@@ -172,41 +170,40 @@ export const editAiImage = async ({ imageBuffer, mime, prompt, userId }) => {
       throw new Error("Insufficient credits");
     }
 
-    const optimizedBuffer = await sharp(imageBuffer)
-      .resize({
-        width: 1024,
-        height: 1024,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality: 80 })
-      .toBuffer();
-    const reqImagePart = {
-      inlineData: {
-        mimeType: mime,
-        data: optimizedBuffer.toString("base64"),
-      },
-    };
-
     const clearedPrompt = cleanPrompt(prompt);
+
     const startTime = Date.now();
-    const response = await geminiAi.models.generateContent({
-      model: env.GEMINI_IMAGE_MODEL_FLASH,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            reqImagePart,
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-      config: {
-        responseModalities: [Modality.IMAGE],
-      },
+    const response = await openai.images.edit({
+      model: env.IMAGE_MINI_MODEL,
+      image: imageFile,
+      prompt: `
+        Edit the uploaded image according to this instruction:
+        ${clearedPrompt.trim()}
+
+        IMPORTANT PRESERVATION RULES:
+        - Preserve every person's original identity and facial likeness.
+        - Do not regenerate, redraw, beautify, or alter faces.
+        - Keep eyes, nose, lips, face shape, skin tone, and expression unchanged.
+        - Preserve original hair, body proportions, pose, and clothing
+          unless explicitly requested otherwise.
+        - Change only the specific elements requested by the user.
+        - Keep all other parts of the original image unchanged.
+        - Maintain realistic lighting and natural integration.
+      `,
+      quality: "medium",
+      size: "1024x1024",
+      output_format: "png",
     });
+
+    if (
+      !response ||
+      !response.data ||
+      !response.data[0] ||
+      !response.data[0].b64_json
+    ) {
+      throw new Error("Failed to generate image");
+    }
+
     const endTime = Date.now();
 
     const generationTimeSeconds = Number(
@@ -216,31 +213,24 @@ export const editAiImage = async ({ imageBuffer, mime, prompt, userId }) => {
     generation = await createGeneration({
       userId,
       type: "image",
-      operation: "edit",
+      operation: "create",
       prompt: clearedPrompt,
       creditsUsed: PROMPT_CREDIT_COST,
-      model: env.GEMINI_IMAGE_MODEL_FLASH,
+      model: env.IMAGE_MINI_MODEL,
       duration: generationTimeSeconds,
       usageData: {
         images: 1,
       },
     });
 
-    const imagePart = response.candidates[0].content.parts.find(
-      (part) => part.inlineData,
-    );
-    if (!imagePart) {
-      throw new Error("No image returned from Gemini");
-    }
-    const { data: base64Image, mimeType } = imagePart.inlineData;
-    return { base64Image, mimeType, generation };
+    return { b64_json: response.data?.[0]?.b64_json, generation };
   } catch (error) {
     if (generation) {
       await Generation.updateStatus(generation._id, "failed");
     }
     console.error(error);
 
-    throw new Error("Failed to edit image");
+    throw new Error(error.message);
   }
 };
 
