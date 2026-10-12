@@ -145,14 +145,14 @@ export const updateProfilePhoto = async (req) => {
     "PROFILE_PHOTO",
   );
 
-  if (!uploadedAvatar?.url) {
+  if (!uploadedAvatar?.secure_url) {
     throw new Error("Failed to upload profile photo");
   }
 
   // Get old avatar and update in a single query
   const oldUser = await User.findOneAndUpdate(
     { _id: userId },
-    { $set: { avatar: uploadedAvatar.url } },
+    { $set: { avatar: uploadedAvatar.secure_url } },
     {
       projection: { avatar: 1 },
       returnDocument: "before", // Returns document before update
@@ -178,7 +178,7 @@ export const updateProfilePhoto = async (req) => {
     performedBy: userId,
   });
 
-  return uploadedAvatar.url;
+  return uploadedAvatar.secure_url;
 };
 
 export const removeProfilePhoto = async (req) => {

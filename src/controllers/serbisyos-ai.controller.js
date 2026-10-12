@@ -30,7 +30,7 @@ export const generateImage = async (req, res) => {
     gen = generation;
     const imageFile = `data:image/png;base64,${base64Image}`;
     const aiImage = await uploadOnCloudinary(imageFile, "IMAGES");
-    const image_url = aiImage.url;
+    const image_url = aiImage.secure_url;
 
     await Generation.updateGeneration(gen._id, {
       result: image_url,
