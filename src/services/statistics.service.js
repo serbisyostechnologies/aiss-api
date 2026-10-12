@@ -104,12 +104,12 @@ export const formatDateTime = (date) => {
   });
 
   const timePart = d.toLocaleTimeString("en-US", {
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
     hour12: true,
   });
 
-  return `${datePart} • ${timePart}`;
+  return `${datePart} ${timePart}`;
 };
 
 const getDescription = (item) => {
