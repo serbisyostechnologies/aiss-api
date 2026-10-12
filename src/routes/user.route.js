@@ -5,7 +5,7 @@ import authMiddleware from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
-router.post('/register', authMiddleware, register);
+router.post('/register', register);
 router.post('/update-language', authMiddleware, updateUserLanguage);
 router.post('/update-plan', authMiddleware, updatePlan);
 router.post('/get-profile', authMiddleware, getProfile);
