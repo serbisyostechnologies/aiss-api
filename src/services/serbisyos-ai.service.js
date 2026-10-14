@@ -93,7 +93,7 @@ export const generateAiPrompt = async ({ prompt, userId }) => {
   }
 };
 
-export const generateAiImage = async ({ prompt, userId }) => {
+export const generateAiImage = async ({ prompt, userId, imageSize }) => {
   let generation;
   try {
     const result = await validateUserInput(userId, prompt);
@@ -113,7 +113,7 @@ export const generateAiImage = async ({ prompt, userId }) => {
     const response = await openai.images.generate({
       model: env.IMAGE_MINI_MODEL,
       prompt: clearedPrompt.replace(/\n/g, " ").replace(/\s+/g, " ").trim(),
-      size: "1024x1024",
+      size: imageSize,
       quality: "medium",
     });
 
@@ -156,7 +156,7 @@ export const generateAiImage = async ({ prompt, userId }) => {
   }
 };
 
-export const editAiImage = async ({ imageFile, userId, prompt }) => {
+export const editAiImage = async ({ imageFile, userId, prompt, imageSize }) => {
   let generation;
   try {
     const result = await validateUserInput(userId, prompt);
@@ -191,7 +191,7 @@ export const editAiImage = async ({ imageFile, userId, prompt }) => {
         - Maintain realistic lighting and natural integration.
       `,
       quality: "medium",
-      size: "1024x1024",
+      size: imageSize,
       output_format: "png",
     });
 

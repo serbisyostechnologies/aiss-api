@@ -91,12 +91,13 @@ export const editImage = async (req, res) => {
         type: mimeType,
       },
     );
-    const { prompt, userId } = req.body;
+    const { prompt, userId, imageSize } = req.body;
 
     const { b64_json, generation } = await editAiImage({
       imageFile,
       userId,
       prompt,
+      imageSize
     });
     gen = generation;
 
