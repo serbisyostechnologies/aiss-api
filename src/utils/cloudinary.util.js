@@ -15,7 +15,6 @@ const uploadOnCloudinary = async (localFilePath, folder) => {
     }
     return response;
   } catch (error) {
-    console.log(error);
     if (!localFilePath.startsWith("data:") && fs.existsSync(localFilePath)) {
       fs.unlinkSync(localFilePath);
     }

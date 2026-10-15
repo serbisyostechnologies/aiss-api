@@ -39,7 +39,6 @@ export const getProfile = async (req, res) => {
     const profile = await getUserProfile(req.body);
     res.status(201).json({ profile, success: true });
   } catch (err) {
-    console.log(err);
     res.status(400).json({ success: false, message: err.message });
   }
 }

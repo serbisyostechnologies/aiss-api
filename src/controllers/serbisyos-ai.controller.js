@@ -3,13 +3,13 @@ import {
   generateAiImage,
   editAiImage,
   createAiImageCollage,
-  generateAiVideo,
 } from "../services/serbisyos-ai.service.js";
 import Generation from "../models/generation.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.util.js";
 import fs from "fs";
 import { toFile } from "openai";
 import path from "path";
+import { deleteAllFiles } from "../utils/utilities.util.js";
 
 export const generatePrompt = async (req, res) => {
   try {
@@ -45,7 +45,6 @@ export const generateImage = async (req, res) => {
       image_url,
     });
   } catch (err) {
-    console.log(err);
     if (gen) {
       await Generation.updateStatus(gen._id, "failed");
     }
@@ -56,9 +55,6 @@ export const generateImage = async (req, res) => {
 export const editImage = async (req, res) => {
   let gen;
   try {
-    console.log(req.files.image);
-    console.log(req.body);
-
     if (req.files.image.length == 0) {
       return res.status(400).json({
         success: false,
@@ -97,7 +93,7 @@ export const editImage = async (req, res) => {
       imageFile,
       userId,
       prompt,
-      imageSize
+      imageSize,
     });
     gen = generation;
 
@@ -110,13 +106,14 @@ export const editImage = async (req, res) => {
       status: "completed",
     });
 
+    await deleteAllFiles(process.env.VERCEL === "1" ? "./tmp" : "./public/temp");
+
     res.status(201).json({
       success: true,
       message: "Image edited successfully",
       image_url,
     });
   } catch (err) {
-    console.log(err);
     if (gen) {
       await Generation.updateStatus(gen._id, "failed");
     }
@@ -127,30 +124,49 @@ export const editImage = async (req, res) => {
 export const createImageCollage = async (req, res) => {
   let gen;
   try {
-    const { prompt, userId } = req.body;
-    const { base64Image, mimeType, generation } = await createAiImageCollage({
-      files: req.files?.images,
-      prompt,
-      userId,
-    });
+    const files = req.files.images || [];
 
+    if (files.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: "Upload at least 2 images to create a collage.",
+      });
+    }
+
+    const imageFiles = await Promise.all(
+      files.map((file) =>
+        toFile(fs.createReadStream(file.path), file.originalname, {
+          type: file.mimetype,
+        }),
+      ),
+    );
+
+    const { prompt, userId, imageSize } = req.body;
+
+    const { b64_json, generation } = await createAiImageCollage({
+      imageFiles,
+      userId,
+      prompt,
+      imageSize,
+    });
     gen = generation;
-    const imageFile = `data:${mimeType};base64,${base64Image}`;
-    const aiImage = await uploadOnCloudinary(imageFile, "IMAGES");
-    const image_url = aiImage.url;
+
+    const image = `data:image/png;base64,${b64_json}`;
+    const aiImage = await uploadOnCloudinary(image, "IMAGES");
+    const image_url = aiImage.secure_url;
 
     await Generation.updateGeneration(gen._id, {
       result: image_url,
       status: "completed",
     });
 
+    await deleteAllFiles(process.env.VERCEL === "1" ? "./tmp" : "./public/temp");
     res.status(201).json({
       success: true,
-      message: "Image edited successfully",
+      message: "Image collage created successfully",
       image_url,
     });
   } catch (err) {
-    console.log(err);
     if (gen) {
       await Generation.updateStatus(gen._id, "failed");
     }
@@ -178,7 +194,6 @@ export const generateVideo = async (req, res) => {
       video_url,
     });
   } catch (err) {
-    console.log(err);
     if (gen) {
       await Generation.updateStatus(gen._id, "failed");
     }

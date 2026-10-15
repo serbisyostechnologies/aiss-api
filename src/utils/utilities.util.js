@@ -1,6 +1,8 @@
 import UserPlan from "../models/user.plan.model.js";
 import { updateUserUsage } from "../controllers/usage.controller.js";
 import Generation from "../models/generation.model.js";
+import fs from "node:fs/promises";
+import path from "path";
 
 export const validateUserInput = async (userId, prompt) => {
   if (!userId?.trim()) {
@@ -64,4 +66,21 @@ export const createGeneration = async ({
   });
 
   return generation;
+};
+
+export const deleteAllFiles = async (folderPath) => {
+  try {
+    const entries = await fs.readdir(folderPath, {
+      withFileTypes: true,
+    });
+
+    await Promise.all(
+      entries
+        .filter((entry) => entry.isFile())
+        .map((entry) => fs.unlink(path.join(folderPath, entry.name))),
+    );
+  } catch (error) {
+    console.error("Error deleting files:", error);
+    throw error;
+  }
 };

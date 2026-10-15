@@ -40,7 +40,6 @@ export const login = async (req, res) => {
       accessToken
     });
   } catch (err) {
-    console.log(err);
     res.status(400).json({
       success: false,
       message: err.message,
