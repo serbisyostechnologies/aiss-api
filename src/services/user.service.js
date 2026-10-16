@@ -3,10 +3,8 @@ import Plan from "../models/plan.model.js";
 import UserPlan from "../models/user.plan.model.js";
 import UserUsage from "../models/user.usage.model.js";
 import UserLog from "../models/user.log.model.js";
-import bcrypt from "bcryptjs";
+import Generation from "../models/generation.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.util.js";
-
-const PROFILE_CACHE_TTL = 60 * 5; // 5 minutes
 
 export const registerUser = async ({ name, email, mobile, password }) => {
   if ([name, email, mobile, password].some((field) => field?.trim() === "")) {
@@ -102,7 +100,9 @@ export const getUserProfile = async ({ userId }) => {
 
   const [user, plan, usage] = await Promise.all([
     User.findById(userId)
-      .select("_id name email mobile role isActive credits avatar isEmailVerified isMobileVerified")
+      .select(
+        "_id name email mobile role isActive credits avatar isEmailVerified isMobileVerified",
+      )
       .lean(),
 
     UserPlan.findOne({ userId })
@@ -212,4 +212,13 @@ export const removeProfilePhoto = async (req) => {
   });
 
   return updatedUser;
+};
+
+export const getCreations = async ({ userId }) => {
+  const creations = await Generation.find(
+    { userId: userId, type: "image" },
+    { operation: 1, prompt: 1, result: 1, createdAt: 1, creditsUsed: 1 },
+  ).sort({ createdAt: -1 });
+
+  return creations ?? [];
 };

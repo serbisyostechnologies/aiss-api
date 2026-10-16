@@ -211,7 +211,7 @@ export const editAiImage = async ({ imageFile, userId, prompt, imageSize }) => {
     generation = await createGeneration({
       userId,
       type: "image",
-      operation: "create",
+      operation: "edit",
       prompt: clearedPrompt,
       creditsUsed: PROMPT_CREDIT_COST,
       model: env.OPEN_AI_IMAGE_MODEL,
@@ -299,7 +299,7 @@ export const createAiImageCollage = async ({
     generation = await createGeneration({
       userId,
       type: "image",
-      operation: "create",
+      operation: "collage",
       prompt: clearedPrompt,
       creditsUsed: PROMPT_CREDIT_COST,
       model: env.OPEN_AI_IMAGE_MODEL,

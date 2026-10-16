@@ -5,6 +5,7 @@ import {
   getUserProfile,
   updateProfilePhoto,
   removeProfilePhoto,
+  getCreations
 } from '../services/user.service.js';
 
 export const register = async (req, res) => {
@@ -60,3 +61,12 @@ export const removePhoto = async (req, res) => {
     res.status(400).json({ success: false, message: err.message });
   }
 }
+
+export const getUserCreations = async (req, res) => {
+  try {
+    const creations = await getCreations(req.body);
+    res.status(201).json({ success: true, message: 'User registered successfully', creations });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
