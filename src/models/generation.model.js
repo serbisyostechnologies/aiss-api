@@ -40,6 +40,11 @@ const generationSchema = new mongoose.Schema(
       required: true,
     },
 
+    favourite: {
+      type: Boolean,
+      default: false
+    },
+
     status: {
       type: String,
       enum: ["pending", "processing", "completed", "failed"],

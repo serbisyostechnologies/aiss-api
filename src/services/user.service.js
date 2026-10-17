@@ -217,8 +217,14 @@ export const removeProfilePhoto = async (req) => {
 export const getCreations = async ({ userId }) => {
   const creations = await Generation.find(
     { userId: userId, type: "image" },
-    { operation: 1, prompt: 1, result: 1, createdAt: 1, creditsUsed: 1 },
+    { operation: 1, prompt: 1, result: 1, favorite: 1, createdAt: 1, creditsUsed: 1 },
   ).sort({ createdAt: -1 });
 
   return creations ?? [];
+};
+
+export const deleteCreations = async (generationIds) => {
+  await Generation.deleteMany({
+    _id: { $in: generationIds },
+  });
 };
