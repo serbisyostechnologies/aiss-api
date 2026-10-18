@@ -1,15 +1,48 @@
 import multer from "multer";
-import tempDir from "../utils/temp-dir.js";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import crypto from "node:crypto";
 
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, tempDir);
+  destination: async (req, file, cb) => {
+    try {
+      if (!req.tempUploadDir) {
+        req.tempUploadDir = path.join(
+          os.tmpdir(),
+          `aiss-${crypto.randomUUID()}`,
+        );
+
+        await fs.mkdir(req.tempUploadDir, {
+          recursive: true,
+        });
+      }
+
+      cb(null, req.tempUploadDir);
+    } catch (error) {
+      cb(error);
+    }
   },
-  filename: function (req, file, cb) {
-    cb(null, file.originalname);
+
+  filename: (req, file, cb) => {
+    const extension = path.extname(file.originalname);
+    cb(null, `${crypto.randomUUID()}${extension}`);
   },
 });
 
 export const upload = multer({
   storage,
+  limits: {
+    fileSize: 4 * 1024 * 1024, // 4 MB per image
+    files: 10,
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error("Only JPEG, PNG, and WebP images are allowed"));
+    }
+
+    cb(null, true);
+  },
 });
