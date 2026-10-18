@@ -69,7 +69,7 @@ export const createGeneration = async ({
   return generation;
 };
 
-export const deleteAllTempFiles = async () => {
+export const deleteAllFiles = async () => {
   const tempDir = os.tmpdir();
 
   try {
