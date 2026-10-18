@@ -52,7 +52,7 @@ export const loginUser = async ({ emailMobile, password }) => {
     creditsConsumed: 0,
   };
 
-  const plan = await UserPlan.findOne({ userId: loggedInUser._id })
+  const plan = await UserPlan.findOne({ userId: loggedInUser._id, status: 'active' })
     .populate("planId", "code")
     .lean();
   const usage = await UserUsage.findOne({ userId: loggedInUser._id })

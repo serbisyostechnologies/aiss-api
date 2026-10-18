@@ -112,7 +112,7 @@ export const getUserProfile = async ({ userId }) => {
       )
       .lean(),
 
-    UserPlan.findOne({ userId })
+    UserPlan.findOne({ userId, status: 'active' })
       .select(
         "purchasedCredits remainingCredits status expiresAt createdAt planId",
       )
