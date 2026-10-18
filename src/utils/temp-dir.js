@@ -15,9 +15,7 @@ if (!fs.existsSync(tempDir)) {
 }
 
 async function createTempDirectory() {
-  const tempDir = path.join(os.tmpdir(), `aiss-${crypto.randomUUID()}`);
-
-  await fs.mkdir(tempDir, { recursive: true });
+  await fs.mkdir("/tmp", { recursive: true });
 }
 
 export default tempDir;
