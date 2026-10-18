@@ -52,6 +52,13 @@ export const updateUserPlan = async ({ userId, code }) => {
     throw new Error("You already have an active plan");
   }
 
+  await UserPlan.updateMany(
+    { userId },
+    {
+      $set: { status: 'inactive' },
+    },
+  );
+
   const userPlan = await UserPlan.create({
     userId,
     planId: plan._id,
