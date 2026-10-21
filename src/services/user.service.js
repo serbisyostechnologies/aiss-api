@@ -44,14 +44,6 @@ export const updateUserPlan = async ({ userId, code }) => {
   }
 
   const plan = await Plan.findOne({ code }).select("_id credits code");
-
-  const exists = await UserPlan.findOne({
-    $and: [{ userId }, { planId: plan._id }],
-  });
-  if (exists) {
-    throw new Error("You already have an active plan");
-  }
-
   await UserPlan.updateMany(
     { userId },
     {
