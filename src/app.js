@@ -43,6 +43,10 @@ import orderRouter from "./routes/order.route.js";
 import otpRouter from "./routes/otp.route.js";
 import serbisyosRouter from "./routes/serbisyos-ai.route.js";
 import statsRouter from "./routes/statistics.route.js";
+import promptRouter from "./routes/prompt.route.js";
+import monthRouter from "./routes/month.route.js";
+import stateRouter from "./routes/state.route.js";
+import occasionRouter from "./routes/occasion.route.js";
 
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/auth", authRouter);
@@ -52,6 +56,10 @@ app.use("/api/v1/order", orderRouter);
 app.use("/api/v1/otp", otpRouter);
 app.use("/api/v1/serbisyos", serbisyosRouter);
 app.use("/api/v1/statistics", statsRouter);
+app.use("/api/v1/prompt", promptRouter);
+app.use("/api/v1/month", monthRouter);
+app.use("/api/v1/state", stateRouter);
+app.use("/api/v1/occasion", occasionRouter);
 
 app.get("/", (req, res) => {
   res.json({
