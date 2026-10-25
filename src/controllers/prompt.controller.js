@@ -1,6 +1,6 @@
 import * as promptService from "../services/prompt.service.js";
 
-export const createPrompt = async (req, res) => {
+export const createPrompts = async (req, res) => {
   try {
     const prompts = req.body;
 
@@ -11,7 +11,7 @@ export const createPrompt = async (req, res) => {
       });
     }
 
-    const result = await promptService.createPrompt(prompts);
+    const result = await promptService.createPrompts(prompts);
 
     return res.status(201).json({
       success: true,
@@ -45,15 +45,16 @@ export const getAllPrompts = async (req, res) => {
   }
 };
 
-export const getOccassionPrompts = async (req, res) => {
+export const getPrompts = async (req, res) => {
   try {
-    const prompts = await promptService.getOccassionPrompts(req.body);
+    const prompts = await promptService.getPrompts(req.body);
 
     return res.status(200).json({
       success: true,
       data: prompts,
     });
   } catch (error) {
+    console.log(error);
     return res.status(500).json({
       success: false,
       message: "Failed to fetch prompts",
