@@ -66,34 +66,11 @@ export const getAllPrompts = async () => {
     .sort({ createdAt: -1, prompt: 1 });
 };
 
-export const getPrompts = async ({ state, operation }) => {
-  let stateId = null;
-
-  if (state) {
-    const stateData = await State.findOne({
-      name: state,
-    }).select("_id");
-
-    if (!stateData) {
-      throw new Error("State not found");
-    }
-
-    stateId = stateData._id;
-  }
-
-  const stateFilter = stateId
-    ? {
-        $or: [{ state: stateId }, { state: { $size: 0 } }],
-      }
-    : {
-        state: { $size: 0 },
-      };
-
+export const getPrompts = async ({ operation }) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const before = await Occasion.find({
-    ...stateFilter,
     date: { $lt: today },
   })
     .sort({ date: -1 })
@@ -101,35 +78,38 @@ export const getPrompts = async ({ state, operation }) => {
     .select("_id name date");
 
   const after = await Occasion.find({
-    ...stateFilter,
     date: { $gte: today },
   })
     .sort({ date: 1 })
     .limit(3)
     .select("_id name date");
 
-  const occasionIds = [...before, ...after].map((occasion) => occasion._id);
+  const occasionIds = [...before, ...after].map(
+    (occasion) => occasion._id
+  );
 
   return await Prompt.aggregate([
     {
       $match: {
-        occasion: { $in: occasionIds },
         operation,
         isActive: true,
+        occasion: { $in: occasionIds },
       },
     },
     {
       $lookup: {
-        from: "occasions", // Use your actual MongoDB collection name
+        from: "occasions",
         localField: "occasion",
         foreignField: "_id",
         as: "occasion",
       },
     },
-    { $unwind: "$occasion" },
+    {
+      $unwind: "$occasion",
+    },
     {
       $sort: {
-        "occasion.date": 1, // Ascending: earliest date first
+        "occasion.date": 1,
       },
     },
     {
@@ -137,7 +117,7 @@ export const getPrompts = async ({ state, operation }) => {
         prompt: 1,
         occasion: {
           name: "$occasion.name",
-          id: "$occasion._id"
+          id: "$occasion._id",
         },
       },
     },
